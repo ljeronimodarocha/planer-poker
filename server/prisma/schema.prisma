@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  hostName   String
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+  stories    Story[]
+}
+
+model Story {
+  id                 String   @id @default(cuid())
+  roomId             String
+  room               Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  title              String
+  description        String   @default("")
+  acceptanceCriteria String   @default("")
+  order              Int      @default(0)
+  status             String   @default("todo")
+  estimate           Int?
+  rounds             Round[]
+}
+
+model Round {
+  id        String     @id @default(cuid())
+  storyId   String
+  story     Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  number    Int
+  consensus Int?
+  createdAt DateTime   @default(now())
+  estimates Estimate[]
+}
+
+model Estimate {
+  id        String   @id @default(cuid())
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  name      String
+  value     Int
+  createdAt DateTime @default(now())
+}
