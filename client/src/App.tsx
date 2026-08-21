@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import Home from './screens/Home'
 import Room from './screens/Room'
-import History from './screens/History'
 import type { RoomState } from './types'
 
 export interface AckResult {
@@ -12,7 +11,7 @@ export interface AckResult {
 }
 
 export default function App() {
-  const [view, setView] = useState<'home' | 'room' | 'history'>('home')
+  const [view, setView] = useState<'home' | 'room'>('home')
   const [room, setRoom] = useState<RoomState | null>(null)
   const [me, setMe] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -84,16 +83,6 @@ export default function App() {
     setView('home')
   }
 
-  function handleHistory() {
-    setError(null)
-    setView('history')
-  }
-
-  function handleHome() {
-    setError(null)
-    setView('home')
-  }
-
   if (view === 'room' && room) {
     return (
       <Room
@@ -101,14 +90,9 @@ export default function App() {
         me={me}
         emit={emit}
         onLeave={handleLeave}
-        onExit={handleHistory}
       />
     )
   }
 
-  if (view === 'history') {
-    return <History onBack={handleHome} />
-  }
-
-  return <Home error={error} onCreate={handleCreate} onJoin={handleJoin} onHistory={handleHistory} />
+  return <Home error={error} onCreate={handleCreate} onJoin={handleJoin} />
 }

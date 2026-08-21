@@ -7,14 +7,14 @@ interface RoomProps {
   me: string
   emit: (event: string, payload?: unknown) => Promise<{ ok: boolean; error?: string }>
   onLeave: () => void
-  onExit: () => void
 }
 
-export default function Room({ room, me, emit, onLeave, onExit }: RoomProps) {
+export default function Room({ room, me, emit, onLeave }: RoomProps) {
   const isHost = room.hostName === me
   const [view, setView] = useState<'board' | 'summary'>('board')
   const [consensusPick, setConsensusPick] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
+  const [transferName, setTransferName] = useState('')
 
   const currentStory = room.round ? room.stories.find((s) => s.id === room.round!.storyId) : null
   const [notice, setNotice] = useState<string | null>(null)
@@ -76,13 +76,34 @@ export default function Room({ room, me, emit, onLeave, onExit }: RoomProps) {
             ))}
           </div>
           <span className="text-sm text-slate-400">{room.participants.length} online</span>
-          {isHost && (
-            <button
-              onClick={() => run('session:finish')}
-              className="rounded-lg border border-rose-800 px-3 py-1.5 text-sm text-rose-300 hover:bg-rose-950"
-            >
-              Encerrar sessão
-            </button>
+          {isHost && !room.round && (
+            <div className="flex items-center gap-2">
+              <select
+                value={transferName}
+                onChange={(e) => setTransferName(e.target.value)}
+                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-300 focus:border-emerald-600 focus:outline-none"
+                title="Responsável pela sala"
+              >
+                {room.participants.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (transferName && transferName !== room.hostName) {
+                    void run('host:transfer', { targetName: transferName })
+                    setTransferName(room.hostName)
+                  }
+                }}
+                disabled={!transferName || transferName === room.hostName}
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-40"
+                title="Transferir responsabilidade da sala"
+              >
+                Transferir responsabilidade
+              </button>
+            </div>
           )}
           <button
             onClick={onLeave}
@@ -100,7 +121,7 @@ export default function Room({ room, me, emit, onLeave, onExit }: RoomProps) {
       )}
 
       {room.finished ? (
-        <SummaryView room={room} isHost={isHost} onExit={onExit} />
+        <SummaryView room={room} />
       ) : (
         <>
           <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -135,9 +156,9 @@ export default function Room({ room, me, emit, onLeave, onExit }: RoomProps) {
             </aside>
 
             <main className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              {view === 'summary' ? (
-                <SummaryView room={room} isHost={isHost} onExit={onExit} />
-              ) : currentStory && room.round ? (
+                {view === 'summary' ? (
+                  <SummaryView room={room} />
+                ) : currentStory && room.round ? (
                 <RoundView
                   room={room}
                   me={me}
@@ -483,12 +504,8 @@ function CardGrid({
 
 function SummaryView({
   room,
-  isHost,
-  onExit,
 }: {
   room: RoomState
-  isHost: boolean
-  onExit: () => void
 }) {
   const done = room.stories.filter((s) => s.status === 'done')
   return (
@@ -502,14 +519,6 @@ function SummaryView({
           >
             ⬇ Exportar CSV
           </button>
-          {isHost && (
-            <button
-              onClick={onExit}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              Ver histórico
-            </button>
-          )}
         </div>
       </div>
       <table className="w-full border-collapse text-sm">

@@ -39,36 +39,4 @@ export interface RoomState {
   round: Round | null
 }
 
-export interface SavedRoom {
-  id: string
-  code: string
-  hostName: string
-  createdAt: string
-  finishedAt: string | null
-  storyCount: number
-  doneCount: number
-}
 
-export interface SavedEstimate {
-  name: string
-  value: number
-}
-
-export interface SavedRound {
-  number: number
-  consensus: number | null
-  estimates: SavedEstimate[]
-}
-
-export interface SavedStory {
-  id: string
-  title: string
-  description: string
-  status: 'todo' | 'done'
-  estimate: number | null
-  rounds: SavedRound[]
-}
-
-export interface SavedRoomDetail extends SavedRoom {
-  stories: SavedStory[]
-}

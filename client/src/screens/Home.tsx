@@ -4,10 +4,9 @@ interface HomeProps {
   error: string | null
   onCreate: (name: string) => Promise<unknown>
   onJoin: (code: string, name: string) => Promise<unknown>
-  onHistory: () => void
 }
 
-export default function Home({ error, onCreate, onJoin, onHistory }: HomeProps) {
+export default function Home({ error, onCreate, onJoin }: HomeProps) {
   const [tab, setTab] = useState<'create' | 'join'>('create')
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
@@ -120,12 +119,6 @@ export default function Home({ error, onCreate, onJoin, onHistory }: HomeProps) 
         </form>
       </div>
 
-      <button
-        onClick={onHistory}
-        className="mx-auto mt-6 text-sm text-slate-500 hover:text-slate-300"
-      >
-        Histórico de sessões
-      </button>
     </div>
   )
 }
