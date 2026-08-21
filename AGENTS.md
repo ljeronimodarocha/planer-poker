@@ -123,3 +123,46 @@ pm2 startup
 - Participants são identificados por `name` (case-insensitive)
 - Host é o primeiro participante; pode ser transferido via socket
 - SQLite é usado para persistência de sessões e stories
+
+## Planos de Alteração
+
+Toda vez que uma alteração for solicitada, siga o fluxo:
+
+1. **Solicitação** — o usuário pede uma alteração (código, config, deploy, etc.).
+2. **Redigir o plano** — crie um `plano de alteração` no **formato `plans/finished`** (Status, Resumo, Mudanças/Correção com trechos de código quando aplicável, Arquivos, Verificação com checkboxes).
+3. **Aprovação** — apresente o ao usuário para revisão; só prossiga após aprovação.
+4. **Salvar em `plans/todo`** — após aprovação, grave o plano em `plans/todo/<slug>.md`, onde `<slug>` é o nome da alteração (ex.: `plans/todo/consenso-plano.md`).
+5. **Implementar e mover** — após implementar a alteração, mova o arquivo para `plans/finished/<slug>.md` e atualize o `Status` para `✅ concluído`.
+
+**Ciclo de vida:** `plans/todo` = área de trabalho (pendente/aprovado); `plans/finished` = planos concluídos. Os arquivos de plano podem ser commitados no git.
+
+**Modelo de Plano:**
+
+```md
+# Plano — <Nome da Alteração>
+
+Status: 🟡 em andamento
+
+## Resumo
+
+<Contextualização da mudança: problema, motivo e objetivo>.
+
+---
+
+## Mudança <N> — <arquivo:linha>
+
+```<trecho de código, quando aplicável>
+
+<Descre cada ponto da alteração>.
+
+### Caso extremo
+
+<Edge cases, quando houver>.
+
+---
+
+## Verificação
+
+- [ ] `<comando/teste de verificação 1>`
+- [ ] `<comando/teste de verificação 2>`
+```
