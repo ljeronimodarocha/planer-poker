@@ -2,7 +2,7 @@ import { Server } from 'socket.io'
 import * as rooms from './rooms.js'
 
 export function createSocketServer(fastifyServer) {
-  const io = new Server({ path: '/realtime' })
+  const io = new Server({ path: '/realtime', pingInterval: 5000, pingTimeout: 10000 })
   io.attach(fastifyServer)
 
   function broadcast(roomId) {

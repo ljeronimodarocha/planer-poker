@@ -126,10 +126,21 @@ export function leaveRoom(roomId, socketId) {
       }
     }
   }
+  if (removed.name.toLowerCase() === room.hostName.toLowerCase()) {
+    room.hostName = resolveHostRoomParticipants(room.participants)
+  }
+
   if (room.participants.length === 0) {
     // sala vazia: descarta o estado; o próximo join reconstrói do banco
     rooms.delete(roomId)
   }
+}
+
+function resolveHostRoomParticipants(participants) {
+  const active = participants
+    .filter((p) => p.socketId !== null)
+    .sort((a, b) => a.joinedAt - b.joinedAt)
+  return active.length ? active[0].name : null
 }
 
 export async function addStory(roomId, actorName, story) {
