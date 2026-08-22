@@ -19,9 +19,15 @@ export function createSocketServer(fastifyServer) {
   }
 
   function broadcast(roomId) {
-    const room = rooms.getRoom(roomId)
+    const room = rooms.get(roomId)
     if (!room) return
     io.to(roomId).emit('room:state', rooms.snapshot(room))
+  }
+
+  function broadcastLean(roomId) {
+    const room = rooms.get(roomId)
+    if (!room) return
+    io.to(roomId).emit('room:delta', rooms.leanRound(room))
   }
 
   io.on('connection', (socket) => {
@@ -46,7 +52,7 @@ export function createSocketServer(fastifyServer) {
       broadcast(roomId)
     }
 
-    function requireHost(action) {
+    function requireHost(action, lean = false) {
       return async (data, ack) => {
         if (!currentRoomId || !currentName) {
           ack?.({ ok: false, error: 'Você não está em uma sala' })
@@ -55,7 +61,7 @@ export function createSocketServer(fastifyServer) {
         try {
           const seat = await requireHostToken(data?.authorization, currentRoomId)
           const room = await action(currentRoomId, seat.name, data)
-          broadcast(currentRoomId)
+          lean ? broadcastLean(currentRoomId) : broadcast(currentRoomId)
           ack?.({ ok: true })
         } catch (err) {
           ack?.({ ok: false, error: err.message })
@@ -63,7 +69,7 @@ export function createSocketServer(fastifyServer) {
       }
     }
 
-    function participant(action) {
+    function participant(action, lean = false) {
       return async (data, ack) => {
         if (!currentRoomId || !currentName) {
           ack?.({ ok: false, error: 'Você não está em uma sala' })
@@ -73,7 +79,7 @@ export function createSocketServer(fastifyServer) {
           const seat = await validateToken(data?.authorization, currentRoomId, 'participant')
           const name = seat?.name || currentName
           const room = await action(currentRoomId, name, data)
-          broadcast(currentRoomId)
+          lean ? broadcastLean(currentRoomId) : broadcast(currentRoomId)
           ack?.({ ok: true })
         } catch (err) {
           ack?.({ ok: false, error: err.message })
@@ -162,7 +168,6 @@ export function createSocketServer(fastifyServer) {
     socket.on('round:start', requireHost((roomId, name, data) =>
       rooms.startRound(roomId, name, data.storyId),
     ))
-    socket.on('round:reveal', requireHost((roomId, name) => rooms.revealRound(roomId, name)))
     socket.on('round:cancel', requireHost((roomId, name) => rooms.cancelRound(roomId, name)))
     socket.on('round:consensus', requireHost((roomId, name, data) =>
       rooms.consensus(roomId, name, data.value),
@@ -173,7 +178,10 @@ export function createSocketServer(fastifyServer) {
     ))
     socket.on('round:select', participant((roomId, name, data) =>
       rooms.selectCard(roomId, name, data.value),
+      true,
     ))
+
+    socket.on('round:reveal', requireHost((roomId, name) => rooms.revealRound(roomId, name), true))
 
     socket.on('disconnect', () => {
       if (currentRoomId) {

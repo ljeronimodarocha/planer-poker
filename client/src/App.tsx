@@ -24,6 +24,10 @@ export default function App() {
       setView('room')
     }
     socket.on('room:state', onState)
+    const onDelta = ({ round }: { roomId: string; round: RoomState['round'] }) => {
+      setRoom((prev) => (prev ? { ...prev, round } : prev))
+    }
+    socket.on('room:delta', onDelta)
     const onCreated = (data: { roomId: string; code: string; hostName: string }) => {
       const newState: RoomState = {
         roomId: data.roomId,
@@ -41,6 +45,7 @@ export default function App() {
     socket.on('room:created', onCreated)
     return () => {
       socket.off('room:state', onState)
+      socket.off('room:delta', onDelta)
       socket.off('room:created', onCreated)
     }
   }, [socket])

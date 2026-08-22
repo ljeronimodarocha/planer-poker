@@ -384,3 +384,7 @@ export function snapshot(room) {
       : null,
   }
 }
+
+export function leanRound(room) {
+  return { roomId: room.id, round: room.round ? { storyId: room.round.storyId, number: room.round.number, phase: room.round.phase, selections: { ...room.round.selections } } : null }
+}
