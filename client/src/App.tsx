@@ -15,6 +15,7 @@ export default function App() {
   const [room, setRoom] = useState<RoomState | null>(null)
   const [me, setMe] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [socket] = useState<Socket>(() => io('/', { path: '/realtime' }))
 
   useEffect(() => {
@@ -45,22 +46,25 @@ export default function App() {
   }, [socket])
 
   const emit = useCallback(
-    (event: string, payload?: unknown): Promise<AckResult> => {
-      return new Promise((resolve) => socket.emit(event, payload, (res: AckResult) => resolve(res)))
+    (event: string, data?: Record<string, unknown>): Promise<AckResult> => {
+      return new Promise((resolve) =>
+        socket.emit(event, data ?? {}, (res: AckResult) => resolve(res)),
+      )
     },
     [socket],
   )
 
-  async function handleCreate(name: string) {
+  async function handleCreate(name: string, password: string) {
     setError(null)
     setMe(name)
-    const res = await emit('room:create', { name })
+    const res = await emit('room:create', { name, password })
     if (!res.ok) {
       setMe('')
       setError(res.error || 'Erro ao criar a sala')
       return
     }
     if (res.name) setMe(res.name)
+    if (typeof res.hostToken === 'string') setToken(res.hostToken)
   }
 
   async function handleJoin(code: string, name: string) {
@@ -73,6 +77,7 @@ export default function App() {
       return
     }
     if (res.name) setMe(res.name)
+    if (typeof res.participantToken === 'string') setToken(res.participantToken)
   }
 
   function handleLeave() {
@@ -88,7 +93,9 @@ export default function App() {
       <Room
         room={room}
         me={me}
+        token={token}
         emit={emit}
+        onToken={(t) => setToken(t)}
         onLeave={handleLeave}
       />
     )

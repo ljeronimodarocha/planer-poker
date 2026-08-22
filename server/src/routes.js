@@ -1,4 +1,5 @@
 import { prisma } from './db.js'
+import { validateToken } from './rooms.js'
 
 export const INFINITY = -1
 
@@ -15,6 +16,10 @@ export function registerApiRoutes(app) {
   app.get('/api/health', async () => ({ ok: true }))
 
   app.get('/api/rooms/:id/export.csv', async (req, reply) => {
+    const auth = req.headers.authorization
+    if (typeof auth !== 'string') return reply.status(401).send({ error: 'Acesso negado à sala' })
+    const seat = await validateToken(auth.replace(/^Bearer\s+/i, ''), req.params.id, 'host')
+    if (!seat) return reply.status(401).send({ error: 'Acesso negado à sala' })
     const room = await prisma.room.findUnique({
       where: { id: req.params.id },
       include: {

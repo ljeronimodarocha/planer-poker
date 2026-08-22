@@ -10,9 +10,10 @@ export default function Home({ error, onCreate, onJoin }: HomeProps) {
   const [tab, setTab] = useState<'create' | 'join'>('create')
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
 
   function canCreate() {
-    return name.trim().length > 0
+    return name.trim().length > 0 && password.trim().length >= 6
   }
 
   function canJoin() {
@@ -59,7 +60,7 @@ export default function Home({ error, onCreate, onJoin }: HomeProps) {
           onSubmit={(e) => {
             e.preventDefault()
             if (tab === 'create') {
-              canCreate() && void onCreate(name.trim())
+              canCreate() && void onCreate(name.trim(), password.trim())
             } else {
               canJoin() && void onJoin(code.trim(), name.trim())
             }
@@ -74,6 +75,16 @@ export default function Home({ error, onCreate, onJoin }: HomeProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex.: Ana"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm placeholder:text-slate-600 focus:border-emerald-600 focus:outline-none"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm text-slate-400">Senha da sala</span>
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  placeholder="Mín. 6 caracteres"
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm placeholder:text-slate-600 focus:border-emerald-600 focus:outline-none"
                 />
               </label>

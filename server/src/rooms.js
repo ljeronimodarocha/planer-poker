@@ -1,3 +1,5 @@
+import bcryptjs from 'bcryptjs'
+import { randomBytes } from 'node:crypto'
 import { prisma } from './db.js'
 
 // -1 representa o cartão "infinito"
@@ -8,6 +10,32 @@ export const INFINITY = -1
 const rooms = new Map() // roomId -> state
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000 // 24h
+
+function randomToken() {
+  return randomBytes(24).toString('hex')
+}
+
+async function issueToken(roomId, name, socketId, role) {
+  const token = randomToken()
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
+  await prisma.session.create({
+    data: { token, room: { connect: { id: roomId } }, name, socketId, role, expiresAt },
+  })
+  return token
+}
+
+export async function validateToken(token, roomId, role) {
+  if (typeof token !== 'string' || token.length < 16) return null
+  const session = await prisma.session.findUnique({ where: { token } })
+  if (!session || session.role !== role || session.roomName !== roomId) return null
+  if (session.expiresAt.getTime() < Date.now()) {
+    await prisma.session.delete({ where: { token } })
+    return null
+  }
+  return { name: session.name, token }
+}
 
 function randomCode() {
   for (;;) {
@@ -46,23 +74,39 @@ function requireRoom(id) {
   return room
 }
 
-export async function createRoom(hostName, socketId) {
+export async function createRoom(hostName, password, socketId) {
+  if (typeof hostName !== 'string' || hostName.trim().length === 0) {
+    throw new RoomError('Informe seu nome')
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    throw new RoomError('Senha muito curta (mín. 6 caracteres)')
+  }
+  if (password.length > 72) {
+    throw new RoomError('Senha muito longa (máx. 72 caracteres)')
+  }
+  const name = hostName.trim()
   const id = crypto.randomUUID()
   const code = randomCode()
-  await prisma.room.create({ data: { id, code, hostName } })
+  const passwordHash = await bcryptjs.hash(password, 10)
   const room = {
     id,
     code,
-    hostName,
+    hostName: name,
+    creatorName: name,
+    passwordHash,
     finished: false,
     participants: [
-      { name: hostName, socketId, joinedAt: Date.now() },
+      { name, socketId, joinedAt: Date.now() },
     ],
     stories: [],
     round: null,
   }
+  await prisma.room.create({
+    data: { id, code, hostName: name, creatorName: name, passwordHash },
+  })
+  const hostToken = await issueToken(id, name, socketId, 'host')
   rooms.set(id, room)
-  return room
+  return { room, hostToken }
 }
 
 export async function loadRoomFromDb(code) {
@@ -96,19 +140,23 @@ export async function loadRoomFromDb(code) {
 export async function joinRoom(code, name, socketId) {
   const room = await loadRoomFromDb(code)
   if (room.finished) throw new RoomError('Esta sessão já foi encerrada')
-  const existing = findParticipant(room, name)
+  const trimmedName = String(name ?? '').trim()
+  if (trimmedName.length === 0) throw new RoomError('Informe seu nome')
+  const existing = findParticipant(room, trimmedName)
   if (existing) {
     if (existing.socketId !== null && existing.socketId !== socketId) {
       throw new RoomError('Nome já em uso nesta sala')
     }
     existing.socketId = socketId
     existing.joinedAt = Date.now()
-    return room
+    const participantToken = await issueToken(room.id, existing.name, socketId, 'participant')
+    return { room, participantToken }
   }
   const canonicalName =
-    room.hostName.toLowerCase() === name.toLowerCase() ? room.hostName : name
+    room.hostName.toLowerCase() === trimmedName.toLowerCase() ? room.hostName : trimmedName
   room.participants.push({ name: canonicalName, socketId, joinedAt: Date.now() })
-  return room
+  const participantToken = await issueToken(room.id, canonicalName, socketId, 'participant')
+  return { room, participantToken }
 }
 
 export function leaveRoom(roomId, socketId) {
@@ -267,6 +315,12 @@ export async function finishSession(roomId, actorName) {
   return room
 }
 
+export async function requireHostToken(token, roomId) {
+  const seat = await validateToken(token, roomId, 'host')
+  if (!seat) throw new RoomError('Acesso restrido ao responsável pela sala')
+  return seat
+}
+
 function assertHost(room, actorName) {
   if (room.hostName.toLowerCase() !== String(actorName).toLowerCase()) {
     throw new RoomError('Apenas o responsável pela sala pode fazer isso')
@@ -275,15 +329,34 @@ function assertHost(room, actorName) {
 
 export async function transferHost(roomId, actorName, targetName) {
   const room = requireRoom(roomId)
-  assertHost(room, actorName)
+  const seat = await validateToken(actorName, roomId, 'host')
+  if (!seat) throw new RoomError('Acesso restrido ao responsável pela sala')
+  assertHost(room, seat.name)
   const target = findParticipant(room, targetName)
-  if (!target) throw new RoomError('Participante não encontrado')
+  if (!target) throw new RoomError('Partipante não encontrado')
   room.hostName = target.name
   await prisma.room.update({
     where: { id: roomId },
     data: { hostName: target.name },
   })
+  await prisma.audit.create({
+    data: { roomName: roomId, actor: seat.name, action: 'host:transfer' },
+  })
   return room
+}
+
+export async function authenticate(roomId, name, password) {
+  const room = requireRoom(roomId)
+  if (typeof password !== 'string' || password.length < 6) {
+    throw new RoomError('Senha muito curta (mín. 6 caracteres)')
+  }
+  const ok = await bcryptjs.compare(password, room.passwordHash)
+  if (!ok) throw new RoomError('Senha irreconhecida')
+  const hostToken = await issueToken(roomId, room.hostName, null, 'host')
+  await prisma.audit.create({
+    data: { roomName: roomId, actor: String(name ?? '').trim(), action: 'host:auth' },
+  })
+  return { roomId, code: room.code, hostToken }
 }
 
 export function snapshot(room) {

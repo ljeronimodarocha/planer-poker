@@ -8,12 +8,37 @@ datasource db {
 }
 
 model Room {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  hostName   String
-  createdAt  DateTime  @default(now())
-  finishedAt DateTime?
-  stories    Story[]
+  id           String    @id @default(cuid())
+  code         String    @unique
+  hostName     String
+  creatorName  String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  stories      Story[]
+  sessions     Session[]
+  audits       Audit[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  roomName   String
+  name       String
+  socketId   String?
+  role       String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  room       Room     @relation(fields: [roomName], references: [id], onDelete: Cascade)
+}
+
+model Audit {
+  id         String   @id @default(cuid())
+  roomName   String
+  actor      String
+  action     String
+  createdAt  DateTime @default(now())
+  room       Room     @relation(fields: [roomName], references: [id], onDelete: Cascade)
 }
 
 model Story {

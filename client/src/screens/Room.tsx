@@ -5,16 +5,20 @@ import type { RoomState } from '../types'
 interface RoomProps {
   room: RoomState
   me: string
+  token: string | null
   emit: (event: string, payload?: unknown) => Promise<{ ok: boolean; error?: string }>
+  onToken: (token: string | null) => void
   onLeave: () => void
 }
 
-export default function Room({ room, me, emit, onLeave }: RoomProps) {
+export default function Room({ room, me, token, emit, onToken, onLeave }: RoomProps) {
   const isHost = room.hostName === me
   const [view, setView] = useState<'board' | 'summary'>('board')
   const [consensusPick, setConsensusPick] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
   const [transferName, setTransferName] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authedAsHost, setAuthedAsHost] = useState(false)
 
   const currentStory = room.round ? room.stories.find((s) => s.id === room.round!.storyId) : null
   const [notice, setNotice] = useState<string | null>(null)
@@ -31,7 +35,7 @@ export default function Room({ room, me, emit, onLeave }: RoomProps) {
   }, [room.round?.storyId, room.round?.number])
 
   async function run(event: string, payload?: unknown) {
-    const res = await emit(event, payload)
+    const res = await emit(event, { ...(payload ?? {}), authorization: token })
     if (!res.ok) showNotice(res.error || 'Algo deu errado')
     return res
   }
@@ -41,6 +45,19 @@ export default function Room({ room, me, emit, onLeave }: RoomProps) {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     })
+  }
+
+  async function handleAuthenticate() {
+    if (!authPassword) return
+    const res = await run('room:authenticate', { name: me, password: authPassword })
+    if (res.ok && typeof res.hostToken === 'string') {
+      onToken(res.hostToken)
+      setAuthedAsHost(true)
+      setAuthPassword('')
+      showNotice('Responsibilidade como responsável habilitada')
+    } else {
+      showNotice(res.error || 'Senha irreconhecida')
+    }
   }
 
   const selectedCount = room.round
@@ -102,6 +119,25 @@ export default function Room({ room, me, emit, onLeave }: RoomProps) {
                 title="Transferir responsabilidade da sala"
               >
                 Transferir responsabilidade
+              </button>
+            </div>
+          )}
+          {!authedAsHost && (
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Senha do responsável"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-300 focus:border-emerald-600 focus:outline-none"
+                title="Autenticar como responsável"
+              />
+              <button
+                onClick={handleAuthenticate}
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-600"
+                title="Autenticar como responsável"
+              >
+                Entrar como responsável
               </button>
             </div>
           )}

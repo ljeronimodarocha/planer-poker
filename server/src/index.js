@@ -11,6 +11,10 @@ import { prisma } from './db.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const port = Number(process.env.PORT || 3000)
 const host = process.env.HOST || '0.0.0.0'
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
 const app = Fastify({
   logger: {
@@ -18,7 +22,13 @@ const app = Fastify({
   },
 })
 
-await app.register(cors, { origin: true })
+await app.register(cors, {
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) cb(null, true)
+    else cb(new Error('Origem não permitida'))
+  },
+  credentials: true,
+})
 registerApiRoutes(app)
 
 const distDir = path.resolve(__dirname, '../../client/dist')
