@@ -1,6 +1,6 @@
 import { Server } from 'socket.io'
 import * as rooms from './rooms.js'
-import { requireHostToken, validateToken } from './rooms.js'
+import { requireHostToken, validateToken, getRoom } from './rooms.js'
 
 export function createSocketServer(fastifyServer) {
   const io = new Server({ path: '/realtime', pingInterval: 5000, pingTimeout: 10000 })
@@ -19,13 +19,13 @@ export function createSocketServer(fastifyServer) {
   }
 
   function broadcast(roomId) {
-    const room = rooms.get(roomId)
+    const room = getRoom(roomId)
     if (!room) return
     io.to(roomId).emit('room:state', rooms.snapshot(room))
   }
 
   function broadcastLean(roomId) {
-    const room = rooms.get(roomId)
+    const room = getRoom(roomId)
     if (!room) return
     io.to(roomId).emit('room:delta', rooms.leanRound(room))
   }
