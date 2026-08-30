@@ -329,9 +329,7 @@ function assertHost(room, actorName) {
 
 export async function transferHost(roomId, actorName, targetName) {
   const room = requireRoom(roomId)
-  const seat = await validateToken(actorName, roomId, 'host')
-  if (!seat) throw new RoomError('Acesso restrito ao responsável pela sala')
-  assertHost(room, seat.name)
+  assertHost(room, actorName)
   const target = findParticipant(room, targetName)
   if (!target) throw new RoomError('Partipante não encontrado')
   room.hostName = target.name
@@ -340,7 +338,7 @@ export async function transferHost(roomId, actorName, targetName) {
     data: { hostName: target.name },
   })
   await prisma.audit.create({
-    data: { roomName: roomId, actor: seat.name, action: 'host:transfer' },
+    data: { roomName: roomId, actor: actorName, action: 'host:transfer' },
   })
   return room
 }

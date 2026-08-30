@@ -250,9 +250,9 @@ describe('leaveRoom', () => {
 
 describe('transferHost', () => {
   it('transfere o host e audita', async () => {
-    const { room, hostToken } = await seedRoom()
+    const { room } = await seedRoom()
     await rooms.joinRoom(room.code, 'Ana', 's2')
-    const result = await rooms.transferHost(room.id, hostToken, 'Ana')
+    const result = await rooms.transferHost(room.id, 'Host', 'Ana')
     assert.equal(result.hostName, 'Ana')
     const db = await prisma.room.findUnique({ where: { id: room.id } })
     assert.equal(db.hostName, 'Ana')
@@ -261,14 +261,14 @@ describe('transferHost', () => {
   })
 
   it('alvo não participante → erro', async () => {
-    const { room, hostToken } = await seedRoom()
-    await assert.rejects(rooms.transferHost(room.id, hostToken, 'Zoe'), /Partipante não encontrado/)
+    const { room } = await seedRoom()
+    await assert.rejects(rooms.transferHost(room.id, 'Host', 'Zoe'), /Partipante não encontrado/)
   })
 
-  it('token de participant não basta (role errada)', async () => {
+  it('participante não é o responsável → erro', async () => {
     const { room } = await seedRoom()
-    const { participantToken } = await rooms.joinRoom(room.code, 'Ana', 's2')
-    await assert.rejects(rooms.transferHost(room.id, participantToken, 'Host'), /Acesso restrito/)
+    await rooms.joinRoom(room.code, 'Ana', 's2')
+    await assert.rejects(rooms.transferHost(room.id, 'Ana', 'Host'), /Apenas o responsável/)
   })
 })
 
