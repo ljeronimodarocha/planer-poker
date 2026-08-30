@@ -1,6 +1,6 @@
 # Plano — Segurança do transfer de host (revogação + emissão de token)
 
-Status: 🟡 em andamento (aprovado, aguardando implementação)
+Status: ✅ concluído
 
 ## Resumo
 
@@ -94,7 +94,7 @@ socket.on('host:token', onHostToken)
 
 ## Verificação
 
-- [ ] `npm test` → todos os testes passam
+- [x] `npm test` → todos os testes passam (44/44, incluindo novo teste de socket: transfer → `host:token` → 2ª transferência ok)
 - [ ] Manual: dono transfere para participante → participante consegue iniciar rodada/consenso sem reautenticar; ex-dono com token antigo recebe "Apenas o responsável..." nas ações de host
 - [ ] Manual: participante que tinha autenticado com a senha perde poderes de host após o transfer (precisa reautenticar)
 - [ ] Manual: CSV export continua funcionando para o novo host

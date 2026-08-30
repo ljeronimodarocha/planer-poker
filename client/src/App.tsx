@@ -43,10 +43,13 @@ export default function App() {
       setMe(data.hostName)
     }
     socket.on('room:created', onCreated)
+    const onHostToken = ({ hostToken }: { hostToken: string }) => setToken(hostToken)
+    socket.on('host:token', onHostToken)
     return () => {
       socket.off('room:state', onState)
       socket.off('room:delta', onDelta)
       socket.off('room:created', onCreated)
+      socket.off('host:token', onHostToken)
     }
   }, [socket])
 

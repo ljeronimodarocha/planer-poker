@@ -144,6 +144,27 @@ describe('sockets', () => {
     ana.disconnect()
   })
 
+  it('host:transfer → alvo recebe host:token e consegue ação de host', async () => {
+    const host = await connect()
+    const created = await emitAck(host, 'room:create', { name: 'Host', password: 'senha123' })
+    const ana = await connect()
+    const joined = await emitAck(ana, 'room:join', { code: created.code, name: 'Ana' })
+
+    const tokenPromise = waitForEvent(ana, 'host:token')
+    const transfer = await emitAck(host, 'host:transfer', { authorization: created.hostToken, targetName: 'Ana' })
+    assert.equal(transfer.ok, true)
+    const { hostToken } = await tokenPromise
+
+    const addStory = await emitAck(ana, 'story:add', { authorization: hostToken, title: 'Story A' })
+    assert.equal(addStory.ok, true)
+
+    const secondTransfer = await emitAck(ana, 'host:transfer', { authorization: hostToken, targetName: 'Host' })
+    assert.equal(secondTransfer.ok, true)
+
+    host.disconnect()
+    ana.disconnect()
+  })
+
   it('disconnect do host → reeleição refletida no broadcast', async () => {
     const host = await connect()
     const created = await emitAck(host, 'room:create', { name: 'Host', password: 'senha123' })

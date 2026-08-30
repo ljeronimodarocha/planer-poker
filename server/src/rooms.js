@@ -337,10 +337,12 @@ export async function transferHost(roomId, actorName, targetName) {
     where: { id: roomId },
     data: { hostName: target.name },
   })
+  await prisma.session.deleteMany({ where: { roomName: roomId, role: 'host' } })
+  const hostToken = await issueToken(roomId, target.name, target.socketId, 'host')
   await prisma.audit.create({
     data: { roomName: roomId, actor: actorName, action: 'host:transfer' },
   })
-  return room
+  return { room, hostToken }
 }
 
 export async function authenticate(roomId, name, password) {

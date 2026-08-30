@@ -249,15 +249,22 @@ describe('leaveRoom', () => {
 })
 
 describe('transferHost', () => {
-  it('transfere o host e audita', async () => {
-    const { room } = await seedRoom()
+  it('transfere o host, revoga tokens antigos e emite novo para o alvo', async () => {
+    const { room, hostToken } = await seedRoom()
     await rooms.joinRoom(room.code, 'Ana', 's2')
     const result = await rooms.transferHost(room.id, 'Host', 'Ana')
-    assert.equal(result.hostName, 'Ana')
+    assert.equal(result.room.hostName, 'Ana')
+    assert.ok(result.hostToken)
     const db = await prisma.room.findUnique({ where: { id: room.id } })
     assert.equal(db.hostName, 'Ana')
     const audit = await prisma.audit.findFirst({ where: { action: 'host:transfer' } })
     assert.ok(audit)
+    const hostSessions = await prisma.session.findMany({ where: { roomName: room.id, role: 'host' } })
+    assert.equal(hostSessions.length, 1)
+    assert.equal(hostSessions[0].name, 'Ana')
+    assert.equal(hostSessions[0].token, result.hostToken)
+    const old = await prisma.session.findUnique({ where: { token: hostToken } })
+    assert.equal(old, null)
   })
 
   it('alvo não participante → erro', async () => {

@@ -173,9 +173,12 @@ export function createSocketServer(fastifyServer) {
       rooms.consensus(roomId, name, data.value),
     ))
     socket.on('session:finish', requireHost((roomId, name) => rooms.finishSession(roomId, name)))
-    socket.on('host:transfer', requireHost((roomId, name, data) =>
-      rooms.transferHost(roomId, name, data.targetName),
-    ))
+    socket.on('host:transfer', requireHost(async (roomId, name, data) => {
+      const { room, hostToken } = await rooms.transferHost(roomId, name, data.targetName)
+      const target = rooms.findParticipant(room, data.targetName)
+      if (target?.socketId) io.to(target.socketId).emit('host:token', { hostToken })
+      return room
+    }))
     socket.on('round:select', participant((roomId, name, data) =>
       rooms.selectCard(roomId, name, data.value),
       true,
