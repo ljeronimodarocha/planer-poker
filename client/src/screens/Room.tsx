@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CARD_VALUES, formatCard } from '../types'
 import type { RoomState } from '../types'
+import { downloadCsv } from '../api'
 
 interface RoomProps {
   room: RoomState
@@ -157,7 +158,7 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
       )}
 
       {room.finished ? (
-        <SummaryView room={room} />
+        <SummaryView room={room} token={token} onError={showNotice} />
       ) : (
         <>
           <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -193,7 +194,7 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
 
             <main className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                 {view === 'summary' ? (
-                  <SummaryView room={room} />
+                  <SummaryView room={room} token={token} onError={showNotice} />
                 ) : currentStory && room.round ? (
                 <RoundView
                   room={room}
@@ -540,8 +541,12 @@ function CardGrid({
 
 function SummaryView({
   room,
+  token,
+  onError,
 }: {
   room: RoomState
+  token: string | null
+  onError: (msg: string) => void
 }) {
   const done = room.stories.filter((s) => s.status === 'done')
   return (
@@ -550,7 +555,13 @@ function SummaryView({
         <h2 className="text-lg font-semibold text-white">Resumo da sessão</h2>
         <div className="flex gap-2">
           <button
-            onClick={() => window.location.href = `/api/rooms/${room.roomId}/export.csv`}
+            onClick={async () => {
+              try {
+                await downloadCsv(room.roomId, room.code, token)
+              } catch (err) {
+                onError((err as Error).message)
+              }
+            }}
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
           >
             ⬇ Exportar CSV
