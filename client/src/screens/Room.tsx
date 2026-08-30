@@ -94,6 +94,12 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
             ))}
           </div>
           <span className="text-sm text-slate-400">{room.participants.length} online</span>
+          <span
+            className="rounded-full border border-emerald-800 bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300"
+            title="Responsável pela sala"
+          >
+            👑 {room.hostName}
+          </span>
           {isHost && !room.round && (
             <div className="flex items-center gap-2">
               <select
@@ -123,7 +129,7 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
               </button>
             </div>
           )}
-          {!authedAsHost && (
+          {!isHost && !authedAsHost && (
             <div className="flex items-center gap-2">
               <input
                 type="password"
@@ -158,7 +164,7 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
       )}
 
       {room.finished ? (
-        <SummaryView room={room} token={token} onError={showNotice} />
+        <SummaryView room={room} token={token} canExport={isHost || authedAsHost} onError={showNotice} />
       ) : (
         <>
           <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -194,7 +200,7 @@ export default function Room({ room, me, token, emit, onToken, onLeave }: RoomPr
 
             <main className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                 {view === 'summary' ? (
-                  <SummaryView room={room} token={token} onError={showNotice} />
+                  <SummaryView room={room} token={token} canExport={isHost || authedAsHost} onError={showNotice} />
                 ) : currentStory && room.round ? (
                 <RoundView
                   room={room}
@@ -542,10 +548,12 @@ function CardGrid({
 function SummaryView({
   room,
   token,
+  canExport,
   onError,
 }: {
   room: RoomState
   token: string | null
+  canExport: boolean
   onError: (msg: string) => void
 }) {
   const done = room.stories.filter((s) => s.status === 'done')
@@ -555,6 +563,8 @@ function SummaryView({
         <h2 className="text-lg font-semibold text-white">Resumo da sessão</h2>
         <div className="flex gap-2">
           <button
+            disabled={!canExport}
+            title={canExport ? undefined : 'Somente o responsável pode exportar'}
             onClick={async () => {
               try {
                 await downloadCsv(room.roomId, room.code, token)
@@ -562,7 +572,7 @@ function SummaryView({
                 onError((err as Error).message)
               }
             }}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
           >
             ⬇ Exportar CSV
           </button>
