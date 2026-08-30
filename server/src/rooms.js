@@ -317,7 +317,7 @@ export async function finishSession(roomId, actorName) {
 
 export async function requireHostToken(token, roomId) {
   const seat = await validateToken(token, roomId, 'host')
-  if (!seat) throw new RoomError('Acesso restrido ao responsável pela sala')
+  if (!seat) throw new RoomError('Acesso restrito ao responsável pela sala')
   return seat
 }
 
@@ -330,7 +330,7 @@ function assertHost(room, actorName) {
 export async function transferHost(roomId, actorName, targetName) {
   const room = requireRoom(roomId)
   const seat = await validateToken(actorName, roomId, 'host')
-  if (!seat) throw new RoomError('Acesso restrido ao responsável pela sala')
+  if (!seat) throw new RoomError('Acesso restrito ao responsável pela sala')
   assertHost(room, seat.name)
   const target = findParticipant(room, targetName)
   if (!target) throw new RoomError('Partipante não encontrado')
