@@ -17,7 +17,7 @@ Planning Poker Web é uma aplicação fullstack para estimativas colaborativas e
 ```
 planepoker/
 ├── client/src/
-│   ├── screens/       # Home, Room, History
+│   ├── screens/       # Home, Room
 │   ├── types.ts       # Definições de tipos
 │   ├── api.ts         # Chamadas REST
 │   ├── App.tsx        # Componente raiz + socket.io
@@ -42,6 +42,9 @@ npm run build            # Build do client (production)
 
 # Server
 npm start                # Inicia servidor (serving client/dist + API)
+
+# Testes
+npm test                 # node:test em server/test/ (rooms, socket, routes)
 
 # Prisma
 cd server && npx prisma migrate dev --name <name>
@@ -70,12 +73,14 @@ cd server && npx prisma generate
 - Path: `/realtime` (customizado)
 - Events: `room:*`, `story:*`, `round:*`, `session:*`, `host:*`
 - Ack callbacks para confirmação de ações
-- Broadcast de `room:state` após cada mudança
+- Broadcast de `room:state` após cada mudança; `round:select` e `round:reveal` fazem broadcast lean de `room:delta` (apenas a rodada)
+- Ações de host passam pelo wrapper `requireHost` (valida token de role `host` no campo `authorization` do payload); `round:select` usa `participant` (role `participant`)
+- Tokens efêmeros: emitidos em `room:create`/`room:join`/`room:authenticate`, persistidos na tabela `Session` (TTL 24h)
 
 ## Fluxo do Jogo
 
-1. Host cria sala → recebe `{ roomId, code }`
-2. Membros juntam com `code` + `name`
+1. Host cria sala com `name` + `password` (mín. 6) → recebe `{ roomId, code, hostToken }`
+2. Membros juntam com `code` + `name` → recebem `participantToken`
 3. Host adiciona stories no backlog
 4. Host inicia rodada em um story
 5. Membros selecionam cartas (0, 1, 2, 3, 5, 8, 13, 21, 34, 40, ∞)
@@ -85,11 +90,13 @@ cd server && npx prisma generate
 9. Próximo story → repita
 10. Finish session → persiste tudo no SQLite
 
+Se o host desconectar, o primeiro participante conectado assume; `host:transfer` revoga os tokens de host antigos e emite um novo (emitido ao alvo via `host:token`).
+
 ## Testes
 
+- Testes automatizados: node:test em `server/test/` (rooms, socket, routes) — rode com `npm test`
 - Teste fluxo manual: criar sala → adicionar stories → iniciar rodada → selecionar cartas → revelar → consensus
-- Verifique exportação CSV: `GET /api/rooms/:id/export.csv`
-- Verifique histórico: `GET /api/rooms` retorna sessões salvas
+- Verifique exportação CSV: `GET /api/rooms/:id/export.csv` (exige header `Authorization: Bearer <hostToken>`)
 
 ## Deploy VPS
 
@@ -114,6 +121,7 @@ pm2 startup
 | `PORT` | Porta do servidor | `3000` |
 | `HOST` | Host bind | `0.0.0.0` |
 | `LOG_LEVEL` | Nível de logging | `info` |
+| `ALLOWED_ORIGINS` | Origens CORS permitidas (separadas por vírgula) | `http://localhost:5173` |
 | `DATABASE_URL` | URL SQLite | `file:./dev.db` |
 
 ## Notas Importantes
@@ -122,6 +130,7 @@ pm2 startup
 - `INFINITY = -1` representa ∞ nas cartas e no consenso
 - Participants são identificados por `name` (case-insensitive)
 - Host é o primeiro participante; pode ser transferido via socket
+- Senha da sala: bcrypt hash em `Room.passwordHash`; validada em `room:authenticate`
 - SQLite é usado para persistência de sessões e stories
 
 ## Planos de Alteração
